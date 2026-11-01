@@ -1,5 +1,5 @@
 # Fire TV Customization by
-Happyfinger
+Happyfingers
 
 ## TV customisation
 
