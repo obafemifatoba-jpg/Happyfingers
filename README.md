@@ -1,5 +1,5 @@
 # Fire TV Customization by
-Coded Hack
+Happyfinger
 
 ## TV customisation
 
