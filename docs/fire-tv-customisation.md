@@ -1,35 +1,21 @@
-# TCL Fire TV setup and customisation guide
+# Fire TV setup and customisation guide
 
-This records the necessary steps from the TV customisation session on **1 November 2026**. It separates changes demonstrated on the TV from suggested settings and checks that are still outstanding.
+A reusable guide to Windows ADB, Projectivy configuration, optional wallpapers, appearance settings, troubleshooting, and rollback. Local connection values are requested at runtime.
 
-## 1. Device, tools, and recorded outcome
+## 1. Scope and prerequisites
 
-| Item | Recorded value or outcome |
-| --- | --- |
-| TV | TCL 43PF650K |
-| Model reported by ADB | `AFTMA475B1` |
-| Fire OS | 8.1.1.5, reported by the owner |
-| Underlying Android | 11, confirmed through ADB |
-| Computer | Windows, using PowerShell |
-| Platform Tools | 37.0.1; ADB 1.0.41 was reported |
-| Connection | Windows-to-TV network ADB authenticated successfully |
-| Launcher | Projectivy installed from its developer's GitHub releases and opened successfully |
-| Accessibility | Projectivy's accessibility service was confirmed enabled and bound/running |
-| Amazon launcher | Retained; Android's HOME resolution still reported Amazon after a default-home change attempt |
-| Appearance | Dark launcher background, small cards, and hidden category headings were visible in screenshots |
-| Final preferences | Keep smaller cards, the existing main app order, and Mobile Apps visible |
-| Glass styling | Transparency and glow controls were found; the suggested preset has not yet been verified on the main launcher |
-| Wallpaper | Original PNG prepared; owner reported the later macOS wallpaper download completed. Successful application was not confirmed |
-| Premium | Media file wallpaper import, Themes, and Icon pack showed Premium markers. The owner reported a payment-provider error |
-| Speed | No system animation-scale changes or performance benchmarks were performed |
+- A Windows computer on the same home network as the TV.
+- An Android-based Fire TV that supports network ADB debugging.
+- Google's Platform Tools and the official Projectivy release.
+- Access to the TV remote to approve debugging and configure the launcher.
 
-The exact Projectivy version was not recorded. Menu names below follow the screens actually shown during the session.
+Menu names and supported features can vary by app and firmware version. Verify each operation on the device before treating the setup as complete.
 
 ## 2. Where commands run
 
-Run the PowerShell commands **on the Windows computer connected to the TV's home network**. The cloud chat did not have direct access to the home LAN; the owner executed commands locally and shared results.
+Run the PowerShell commands **on a Windows computer connected to the TV's home network**.
 
-The TV used `192.168.0.102` during the session. Its address can change, so read the current **IP Address** from the TV's network information. The gateway/router address is a different field; `192.168.0.1` was the initial mistaken address.
+Read the current **IP Address** from the TV's network information. Enter it locally when prompted below. The gateway/router address is a different field. Device addresses can change.
 
 ## 3. Install and locate ADB on Windows
 
@@ -39,7 +25,7 @@ Install Google's Platform Tools:
 winget install --id Google.PlatformTools --exact --source winget
 ~~~
 
-Restart PowerShell/Windows Terminal after installation. If `adb` is still unrecognised, locate the executable directly; this was the working solution in the session:
+Restart PowerShell/Windows Terminal after installation. If `adb` is still unrecognised, locate the executable directly:
 
 ~~~powershell
 $folders = @(
@@ -78,17 +64,16 @@ $tvDevice = '{0}:5555' -f $tvAddress
 
 Accept the debugging authorisation prompt **on the TV**. Select **Always allow from this computer** if offered and appropriate for this PC. A successful state is `device`; `unauthorized` means authorisation is incomplete.
 
-The read-only checks used to identify the TV and its starting configuration were:
+These optional read-only checks identify the TV and its starting configuration:
 
 ~~~powershell
 & $adbPath -s $tvDevice shell getprop ro.product.model
 & $adbPath -s $tvDevice shell getprop ro.build.version.release
 & $adbPath -s $tvDevice shell cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.HOME
-& $adbPath -s $tvDevice shell pm list packages -3
 & $adbPath -s $tvDevice shell df -h /data
 ~~~
 
-Storage at that point was approximately **8.7 GB total, 6.3 GB used, 2.2 GB available**. This was a point-in-time observation.
+The storage command reports the current data-partition usage.
 
 ### Connection troubleshooting
 
@@ -110,13 +95,13 @@ Storage at that point was approximately **8.7 GB total, 6.3 GB used, 2.2 GB avai
   & $adbPath devices -l
   ~~~
 
-An alternate PC server port and Windows debugging-key regeneration were suggested during troubleshooting, but neither was established as necessary. The owner reported that the original/default-server connection worked. They are not part of this guide's normal procedure.
+Use the default local ADB server unless a specific diagnostic requires a different configuration.
 
 ## 5. Install and open Projectivy
 
 Official release source: <https://github.com/spocky/miproja1/releases>.
 
-The session used the current release metadata, selected the actual APK asset, checked its size and any published SHA-256 digest, and installed it. For a first installation:
+For a first installation, fetch the current release metadata, select its actual APK asset, and check its size and any published SHA-256 digest:
 
 ~~~powershell
 & {
@@ -165,21 +150,19 @@ Use the highlighted bottom arrow to finish the welcome pages.
 
 ## 6. Configure Home-button handling
 
-### Default-home change did not take effect
+### Verify the active Home handler
 
-The original Android HOME activity was:
+An Amazon HOME activity can look like:
 
 ~~~text
 com.amazon.tv.launcher/.ui.HomeActivity_vNext
 ~~~
 
-An attempt to select Projectivy using `cmd package set-home-activity` returned `Success` and exit code `0`. Immediately resolving HOME still returned Amazon. That attempt did **not** establish a working Home replacement.
-
-A command to restore the preferred-home selection to the recorded Amazon activity was provided. Its execution was not separately confirmed. Amazon's launcher was kept installed and enabled.
+On some firmware, `cmd package set-home-activity` may report `Success` while HOME still resolves to Amazon. Check the resolved activity and physical Home-button behaviour rather than relying on the exit code alone. The accessibility-based procedure below keeps Amazon's launcher available.
 
 ### Diagnose accessibility
 
-The first accessibility checks returned `0`, an empty enabled-services value, and no bound services:
+Check whether accessibility is enabled and which services are configured and running:
 
 ~~~powershell
 & $adbPath -s $tvDevice shell settings get secure accessibility_enabled
@@ -187,15 +170,15 @@ The first accessibility checks returned `0`, an empty enabled-services value, an
 & $adbPath -s $tvDevice shell dumpsys accessibility
 ~~~
 
-The normal TV menu is **Fire TV Home → Settings → Accessibility**. The screenshot showed built-in options such as Subtitle, Alexa Subtitles, VoiceView, Text Banner, and Screen Magnifier. No successful Projectivy enablement through that menu was recorded.
+The normal TV menu is **Fire TV Home → Settings → Accessibility**. It can show built-in options such as Subtitle, Alexa Subtitles, VoiceView, Text Banner, and Screen Magnifier. Availability of third-party services varies.
 
-The installed service was identified with:
+Identify the installed Projectivy service with:
 
 ~~~powershell
 & $adbPath -s $tvDevice shell cmd package query-services --brief -a android.accessibilityservice.AccessibilityService -p com.spocky.projengmenu
 ~~~
 
-It returned:
+The expected component is:
 
 ~~~text
 com.spocky.projengmenu/.services.ProjectivyAccessibilityService
@@ -205,7 +188,7 @@ com.spocky.projengmenu/.services.ProjectivyAccessibilityService
 
 This grants Projectivy accessibility access to interface events needed for its launcher override.
 
-The following procedure was executed successfully **from a state with accessibility disabled and no enabled services**. Its guard intentionally stops if that state has changed. If Projectivy is already enabled and bound, skip this block and verify its status instead.
+The following procedure is for **a state with accessibility disabled and no enabled services**. Its guard stops if other settings are present. If Projectivy is already enabled and bound, skip this block and verify its status instead.
 
 ~~~powershell
 $androidUser = (& $adbPath -s $tvDevice shell am get-current-user).Trim()
@@ -223,7 +206,6 @@ $androidUser = (& $adbPath -s $tvDevice shell am get-current-user).Trim()
 
     $backup = Join-Path ([Environment]::GetFolderPath('Desktop')) ('TV-accessibility-backup-' + [guid]::NewGuid() + '.json')
     @{
-        Device = $tvDevice
         AndroidUser = $androidUser
         AccessibilityEnabled = $oldEnabled
         EnabledServices = $oldServices
@@ -249,7 +231,7 @@ $androidUser = (& $adbPath -s $tvDevice shell am get-current-user).Trim()
 }
 ~~~
 
-The owner supplied output showing:
+An enabled and bound service can report:
 
 ~~~text
 1
@@ -257,7 +239,7 @@ Bound services:{Service[label=Projectivy Launcher, ...]}
 Enabled services:{{com.spocky.projengmenu/com.spocky.projengmenu.services.ProjectivyAccessibilityService}}
 ~~~
 
-That confirms the service was running. A configured service name alone would not establish that.
+The **Bound services** entry is runtime evidence. A configured service name alone does not establish that it is running.
 
 If a write fails partway through, inspect the current values and use the saved backup to restore them before another attempt; the block does not automatically roll back partial changes.
 
@@ -268,29 +250,23 @@ If a write fails partway through, inspect the current values and use the saved b
 3. Enable **Override current launcher**.
 4. Press the **physical remote's Home button**, wait about three seconds, and observe which launcher remains.
 
-A screenshot showing Projectivy open does not establish that the Home button or startup behaviour works. Explicit Home-button and full-TV-restart confirmation remain outstanding in the session record. A brief Amazon screen may occur with a window-event-based override.
+A screenshot showing Projectivy open does not establish that the Home button or startup behaviour works. Test the physical Home button and a full TV restart before treating the override as persistent. A brief Amazon screen may occur with a window-event-based override.
 
-## 7. Final layout preferences and free appearance settings
+## 7. Free appearance settings
 
-The owner's final preferences take precedence over earlier suggestions:
+The preset below uses compact cards, an existing app order, and a visible Mobile Apps category. Adjust it to suit the desired layout.
 
-- **Keep cards small** at the chosen size.
-- **Keep the existing main app order**.
-- **Keep Mobile Apps visible**.
+Under **Projectivy settings → Appearance**, look for **Categories / Channels**, **Cards**, **Wallpaper**, **Status Bar**, **Left headers**, **Launcher Idle Mode**, **Font**, and **Themes**.
 
-Earlier suggestions to enlarge cards, reorder favourites, or hide Mobile Apps were superseded.
+For a dark background without a rotating image source, select **Wallpaper → Launcher wallpaper → None** and check the result on the main launcher.
 
-Under **Projectivy settings → Appearance**, the confirmed sections included **Categories / Channels**, **Cards**, **Wallpaper**, **Status Bar**, **Left headers**, **Launcher Idle Mode**, **Font**, and **Themes**.
-
-The free dark-background route used **Wallpaper → Launcher wallpaper → None**. Later screenshots showed a dark background without the earlier rotating scenery.
-
-For the simpler row presentation, the suggested settings were:
+Suggested settings for a simpler row presentation:
 
 | Location | Setting | Suggested value |
 | --- | --- | --- |
 | Cards | Show title | On, to retain the focused app's name |
 | Cards | Rounded corners | Around one-third of the slider |
-| Cards | Cards size | Owner's preferred small size |
+| Cards | Cards size | Choose a comfortable small size |
 | Categories / Channels | Show title | Off |
 | Categories / Channels | Show icon in front of the title | Off |
 | Categories / Channels | Vertical spacing | Low; one or two right presses from minimum |
@@ -299,11 +275,11 @@ For the simpler row presentation, the suggested settings were:
 
 The two **Show title** controls affect different things: the app name versus category headings. Hiding a heading does not hide the category itself.
 
-The gear's **Edit categories** menu was inspected. Leave its Mobile Apps category visible, as subsequently requested.
+Use the gear's **Edit categories** menu to control category visibility. Keep Mobile Apps visible when that row is wanted.
 
-## 8. Glass-inspired preset: suggested, not yet verified
+## 8. Optional glass-inspired preset
 
-The owner then requested an iOS-style glass look. The Cards screens confirmed a colour picker with **Luminance**, **Opacity**, and **Prefer dynamic colour**, plus a **Focused card** submenu.
+The Cards colour picker can expose **Luminance**, **Opacity**, and **Prefer dynamic colour**, with a separate **Focused card** submenu.
 
 Suggested settings under **Appearance → Cards**:
 
@@ -322,15 +298,13 @@ Suggested settings under **Appearance → Cards**:
 | Glow colour: Opacity | Around halfway along the track |
 | Glow colour: Prefer dynamic colour | Off; confirm OK |
 
-These are translucent backing and soft-highlight settings. The controls shown did not expose true frosted backdrop blur or iOS Liquid Glass refraction. Opaque app artwork may cover its card backing.
+These are translucent backing and soft-highlight settings, not a guarantee of true frosted backdrop blur or iOS Liquid Glass refraction. Opaque app artwork may cover its card backing.
 
-The last screenshot after this advice showed the root **Projectivy Launcher settings** page, not the main app view. The final glass-inspired appearance is therefore **not verified**.
+Verify the result on the main launcher: press **Back** until settings panels close and the app cards appear, then inspect focused and unfocused cards.
 
-To check it, press **Back** until settings panels close and the app cards appear, then inspect the focused and unfocused cards.
+## 9. Wallpapers and Premium features
 
-## 9. Wallpapers and the Premium/payment limitation
-
-The actual wallpaper-source menu showed:
+Wallpaper-source options can include:
 
 - None
 - Reddit
@@ -339,15 +313,15 @@ The actual wallpaper-source menu showed:
 - Default wallpaper
 - **Media file**, marked Premium
 
-**Themes** and **Icon pack** also showed Premium markers. The owner reported that the licence purchase failed with a temporary payment-provider issue. No successful purchase or Premium activation was established.
+**Themes** and **Icon pack** can also require Premium. Features marked Premium require a valid unlock. Resolve checkout or billing problems through the provider; the free appearance settings above remain available independently.
 
-The original generated blue wallpaper is bundled here:
+An optional generated blue wallpaper is bundled here:
 
 ![Original Apple-style blue wallpaper](assets/apple-style-wallpaper.png)
 
 [Open the PNG](assets/apple-style-wallpaper.png).
 
-A macOS Big Sur night wallpaper was later obtained through the [512 Pixels macOS wallpaper archive](https://512pixels.net/projects/default-mac-wallpapers-in-5k/). The owner confirmed the download, but did not supply independent confirmation that it was copied to the TV or applied.
+Alternative macOS wallpapers are available through the [512 Pixels macOS wallpaper archive](https://512pixels.net/projects/default-mac-wallpapers-in-5k/). Download, TV transfer, and application are separate operations to verify.
 
 ### Copy a known local image to the TV
 
@@ -387,19 +361,21 @@ A successful download, a successful `adb push`, and a successfully applied wallp
 
 When Media file is unlocked, select **Launcher wallpaper → Media file**, open **Configure** if offered, and select the image from **Pictures → TVStyle**. A Premium checkout prompt means this application route remains blocked.
 
-No free custom-image route through **Default wallpaper** was verified. No payment or licence bypass was performed.
+This guide does not establish a free custom-image route through **Default wallpaper**.
 
 ### File and PowerShell troubleshooting
 
 - **`cannot stat ... No such file or directory`:** the Windows source path is wrong or the file has not been saved. Inspect the actual image path; do not assume a Desktop filename exists.
-- **A wallpaper shown in chat is not a downloaded Windows file.** Save it first, or use the asset from a local checkout.
+- **An image preview is not a saved Windows file.** Save it first, or use the asset from a local checkout.
 - **File picker seems to do nothing:** look behind PowerShell with **Alt+Tab**. A modal file picker pauses the command until a file is selected or the dialog is cancelled.
 - **`>>` continuation prompt:** PowerShell may be waiting for the rest of a block. Close a missing `}` only when that is what the unfinished block requires; Ctrl+C cancels incomplete input.
-- **Recent files list only Projectivy images:** those are the TV screenshots. A top-ten list is not proof that no wallpaper exists elsewhere or with an older timestamp.
+- **Recent files lists:** confirm the selected file is the wallpaper rather than a TV screenshot. A top-ten list is not proof that no wallpaper exists elsewhere or with an older timestamp.
 
 ## 10. Capture a TV screenshot for verification
 
 Use a temporary file on the TV and pull it to Windows. This avoids binary screenshot data passing through Windows PowerShell text redirection.
+
+Keep device screenshots and settings backups local; neither is needed in the published guide.
 
 ~~~powershell
 $name = 'Projectivy-' + (Get-Date -Format 'yyyyMMdd-HHmmss') + '.png'
@@ -411,9 +387,9 @@ Invoke-Item $shot
 
 An `am start` warning saying the intent was delivered to a currently running top-most instance means that activity was already open. It does not confirm that a permission was enabled.
 
-## 11. Restore the recorded accessibility state
+## 11. Restore a saved accessibility state
 
-The enablement procedure saved a file named `TV-accessibility-backup-<GUID>.json` on the Windows Desktop. That file is on the owner's PC, not in this repository.
+The enablement procedure writes a file named `TV-accessibility-backup-<GUID>.json` on the Windows Desktop. Use the locally saved backup.
 
 Use the backup for this TV and the active local connection. The restoration order is enabled services first, then the global accessibility flag:
 
@@ -455,21 +431,25 @@ Use the backup for this TV and the active local connection. The restoration orde
 
 Check the displayed values against the backup. A literal `null` denotes an absent setting and is restored with `settings delete`; it is not written as a string value. Empty values are passed as an explicitly quoted empty argument.
 
-Restoring the original disabled accessibility state stops Projectivy's accessibility-based Home override. To restore the recorded Amazon preferred-home selection if needed:
+Restoring a disabled accessibility state stops Projectivy's accessibility-based Home override. If a preferred-home selection was changed separately, restore the exact original component recorded before that change:
 
 ~~~powershell
-& $adbPath -s $tvDevice shell cmd package set-home-activity --user $androidUser com.amazon.tv.launcher/.ui.HomeActivity_vNext
+$originalHome = Read-Host 'Enter the original HOME component recorded before changing it'
+if ($originalHome -notmatch '^[A-Za-z0-9_.]+/[A-Za-z0-9_.$]+$') {
+    throw 'Invalid HOME component.'
+}
+& $adbPath -s $tvDevice shell cmd package set-home-activity --user $androidUser ("'" + $originalHome + "'")
 ~~~
 
-## 12. Remaining checks
+## 12. Verification checklist
 
 - Verify the glass-inspired settings on the **main launcher**, outside the settings preview.
 - Confirm the physical **Home** button returns to Projectivy.
 - After configuration is satisfactory, perform a full TV restart and repeat the Home test before describing the setup as persistent.
 - Confirm that a representative streaming app opens and returns to the launcher.
 - Custom wallpaper application remains dependent on a usable Media file unlock or another independently verified supported route.
-- Responsiveness changes and speed measurements remain outstanding. No system animation-scale changes were applied, and app-loading or processor speed was not measured.
+- Assess responsiveness separately. Appearance changes alone do not establish faster app loading or processor performance.
 
-The command blocks consolidate the session into a reference workflow. The entire guide has not been rerun from a fresh Windows/TV setup, and the rollback block has not been exercised. Individual confirmed outcomes are recorded above.
+The command blocks form a reference workflow, not a device-specific execution log. Validate them on the intended TV; the complete workflow and rollback have not been tested across all firmware versions.
 
 This guide and its bundled image are documentation assets. They do not apply settings to the TV or publish repository changes.
