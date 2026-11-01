@@ -1,4 +1,4 @@
-# Fire TV Happyfingers Customization
+# Fire TV Customization by
 Coded Hack
 
 ## TV customisation
